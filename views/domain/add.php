@@ -9,7 +9,7 @@ use yii\bootstrap4\ActiveForm;
 
 $form = ActiveForm::begin([
     'id' => 'domain-add-form',
-    'enableAjaxValidation' => false,
+    'enableAjaxValidation' => true,
     'enableClientValidation' => false,
     'method' => 'post',
 ]); ?>

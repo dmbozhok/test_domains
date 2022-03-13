@@ -15,7 +15,10 @@ class m220313_033943_create_dns_change_table extends Migration
         $this->createTable('{{%dns_change}}', [
             'id' => $this->primaryKey(),
             'domain_id' => $this->integer(),
-            'ns' => $this->text(),
+            'ns1' => $this->string(),
+            'ns2' => $this->string(),
+            'ns3' => $this->string(),
+            'ns4' => $this->string(),
             'handle' => $this->string(),
             'status' => $this->integer(),
             'time' => $this->integer(),

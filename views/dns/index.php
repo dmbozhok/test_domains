@@ -5,11 +5,12 @@
  */
 
 use app\models\DnsChange;
+use yii\grid\GridView;
 
 ?>
 
 <div class="mb-3">
-    <a class="btn btn-success" href="/dns/add">Добавить</a>
+    <a class="btn btn-success" href="/dns/update">Создать запрос</a>
 </div>
 
 
@@ -50,11 +51,35 @@ use app\models\DnsChange;
         [
             'header' => 'Название',
             'format' => 'html',
-            'value' => function ($model) {
+            'value' => function ($modelChange) {
                 /**
-                 * @var $model DnsChange
+                 * @var $modelChange DnsChange
                  */
+                $model = $modelChange->domain;
                 return $model->name . ($model->nameIdn != $model->name ? '<br> ' . $model->nameIdn : '');
+            },
+        ],
+        [
+            'header' => 'NS сервера',
+            'format' => 'html',
+            'value' => function ($modelChange) {
+                /**
+                 * @var $modelChange DnsChange
+                 */
+                $result = '';
+                if ($modelChange->ns1) {
+                    $result .= $modelChange->ns1 . '<br>';
+                }
+                if ($modelChange->ns2) {
+                    $result .= $modelChange->ns2 . '<br>';
+                }
+                if ($modelChange->ns3) {
+                    $result .= $modelChange->ns3 . '<br>';
+                }
+                if ($modelChange->ns4) {
+                    $result .= $modelChange->ns4 . '<br>';
+                }
+                return $result;
             },
         ],
         [

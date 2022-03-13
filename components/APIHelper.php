@@ -20,7 +20,7 @@ class APIHelper
     private static function getAuthObject(): array
     {
         return [
-            'login' => self::USER ,//. '/' . self::CLIENT,
+            'login' => self::USER,//. '/' . self::CLIENT,
             'password' => self::PASSWORD,
         ];
     }
@@ -117,6 +117,14 @@ class APIHelper
         ]);
     }
 
+    /**
+     * Обновление ns серверов домена
+     * @param $domainId
+     * @param $servers
+     * @return false|mixed
+     * @throws \yii\base\InvalidConfigException
+     * @throws \yii\httpclient\Exception
+     */
     public static function updateDomainNS($domainId, $servers)
     {
         return self::performRequest('domainUpdate', [

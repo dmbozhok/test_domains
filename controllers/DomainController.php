@@ -4,8 +4,10 @@ namespace app\controllers;
 
 use app\components\APIHelper;
 use app\models\Domain;
+use yii\bootstrap4\ActiveForm;
 use yii\data\ActiveDataProvider;
 use yii\web\Controller;
+use yii\web\Response;
 
 /**
  * Class DomainController
@@ -30,12 +32,20 @@ class DomainController extends Controller
 
     /**
      * Форма добавления домена
-     * @return string
+     * @return string|array
      * @throws \yii\base\InvalidConfigException
      * @throws \yii\httpclient\Exception
      */
-    public function actionAdd(): string
+    public function actionAdd()
     {
+        if (\Yii::$app->request->isAjax) {
+            $model = new Domain();
+            if ($model->load(\Yii::$app->request->post())) {
+                \Yii::$app->response->format = Response::FORMAT_JSON;
+                return ActiveForm::validate($model);
+            }
+        }
+
         if (\Yii::$app->request->isPost) {
             $result = Domain::add(\Yii::$app->request->post('Domain'));
             $model = $result['model'];

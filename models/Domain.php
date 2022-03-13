@@ -3,6 +3,7 @@
 namespace app\models;
 
 use app\components\APIHelper;
+use kdn\yii2\validators\DomainValidator;
 use Yii;
 
 /**
@@ -51,6 +52,12 @@ class Domain extends \yii\db\ActiveRecord
     {
         return [
             [['status', 'time', 'external_id'], 'integer'],
+            ['name', 'required', 'message' => 'Введите доменное имя'],
+            ['emails', 'required', 'message' => 'Введите email'],
+            ['phones', 'required', 'message' => 'Введите телефон'],
+            ['name', DomainValidator::class, 'enableIDN' => true, 'allowURL' => false, 'message' => 'Введите корректное доменное имя'],
+            ['emails', 'email', 'message' => 'Введите корректный email'],
+            ['phones', 'validatePhone', 'message' => 'Введите корректный номер телефона'],
             [['name', 'nameIdn', 'emails', 'phones', 'handle'], 'string', 'max' => 255],
         ];
     }
@@ -72,6 +79,7 @@ class Domain extends \yii\db\ActiveRecord
             'external_id' => 'External ID',
         ];
     }
+
     /**
      * Gets query for [[DnsChanges]].
      *
@@ -80,6 +88,20 @@ class Domain extends \yii\db\ActiveRecord
     public function getDnsChanges()
     {
         return $this->hasMany(DnsChange::className(), ['domain_id' => 'id']);
+    }
+
+    /**
+     * Проверка номера телефона
+     * @return bool
+     */
+    public function validatePhone()
+    {
+        $phones = self::formatToPhone($this->phones);
+        if (strlen($phones) != 14) {
+            $this->addError('phone', "Введите корректный номер телефона");
+            return false;
+        }
+        return true;
     }
 
     /**
@@ -132,5 +154,50 @@ class Domain extends \yii\db\ActiveRecord
             \Yii::error($model->errors);
             return ['model' => $model, 'success' => false];
         }
+    }
+
+    /**
+     * Обновляет ns сервера
+     * @param array $ns
+     * @return array
+     * @throws \yii\base\InvalidConfigException
+     * @throws \yii\httpclient\Exception
+     */
+    public function updateNS(array $ns): array
+    {
+        $modelChange = new DnsChange();
+        $modelChange->domain_id = $this->id;
+        $modelChange->time = time();
+        $modelChange->status = DnsChange::STATUS_NEW;
+        $modelChange->ns1 = $ns['ns1'];
+        $modelChange->ns2 = $ns['ns2'];
+        $modelChange->ns3 = $ns['ns3'];
+        $modelChange->ns4 = $ns['ns4'];
+
+        if ($modelChange->validate() && $modelChange->save()) {
+            $result = APIHelper::updateDomainNS($this->external_id, array_filter([
+                $modelChange->ns1, $modelChange->ns2, $modelChange->ns3, $modelChange->ns4,
+            ]));
+            if ($result) {
+                $modelChange->handle = $result['handle'];
+                $modelChange->status = DnsChange::STATUS_SENT;
+                $modelChange->save(false);
+                return ['model' => $modelChange, 'sent' => true];
+            } else {
+                \Yii::warning('empty result', 'log');
+                return ['model' => $modelChange, 'sent' => false];
+            }
+        } else {
+            return ['model' => $modelChange, 'errors' => $modelChange->errors];
+        }
+    }
+
+    /**
+     * Массив активированных доменов
+     * @return array
+     */
+    public static function listActiveDomains(): array
+    {
+        return self::find()->select(['name', 'id'])->where(['status' => self::STATUS_SUCCESS])->indexBy('id')->orderBy('name')->column();
     }
 }
