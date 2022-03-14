@@ -20,6 +20,7 @@ class DomainController extends Controller
      */
     public function actionIndex(): string
     {
+        $api = \Yii::$app->api;
         $query = Domain::find()->orderBy(['id' => SORT_DESC]);
         return $this->render('index', [
             'dataProvider' => new ActiveDataProvider([

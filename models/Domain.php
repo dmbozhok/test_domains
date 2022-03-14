@@ -18,6 +18,9 @@ use Yii;
  * @property int|null $status
  * @property int|null $time
  * @property int|null $external_id
+ * @property int|null $client_id
+ *
+ * @property Client $client
  *
  * @property DnsChange[] $dnsChanges
  */
@@ -51,7 +54,7 @@ class Domain extends \yii\db\ActiveRecord
     public function rules()
     {
         return [
-            [['status', 'time', 'external_id'], 'integer'],
+            [['status', 'time', 'external_id', 'client_id'], 'integer'],
             ['name', 'required', 'message' => 'Введите доменное имя'],
             ['emails', 'required', 'message' => 'Введите email'],
             ['phones', 'required', 'message' => 'Введите телефон'],
@@ -59,6 +62,7 @@ class Domain extends \yii\db\ActiveRecord
             ['emails', 'email', 'message' => 'Введите корректный email'],
             ['phones', 'validatePhone', 'message' => 'Введите корректный номер телефона'],
             [['name', 'nameIdn', 'emails', 'phones', 'handle'], 'string', 'max' => 255],
+            [['client_id'], 'exist', 'skipOnError' => true, 'targetClass' => Client::className(), 'targetAttribute' => ['client_id' => 'id']],
         ];
     }
 
@@ -77,6 +81,7 @@ class Domain extends \yii\db\ActiveRecord
             'status' => 'Status',
             'time' => 'Time',
             'external_id' => 'External ID',
+            'client_id' => 'Client ID',
         ];
     }
 
@@ -88,6 +93,16 @@ class Domain extends \yii\db\ActiveRecord
     public function getDnsChanges()
     {
         return $this->hasMany(DnsChange::className(), ['domain_id' => 'id']);
+    }
+
+    /**
+     * Gets query for [[Client]].
+     *
+     * @return \yii\db\ActiveQuery
+     */
+    public function getClient()
+    {
+        return $this->hasOne(Client::className(), ['id' => 'client_id']);
     }
 
     /**

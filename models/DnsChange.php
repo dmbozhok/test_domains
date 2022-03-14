@@ -54,9 +54,9 @@ class DnsChange extends \yii\db\ActiveRecord
         return [
             [['domain_id', 'status', 'time'], 'integer'],
             [['ns1', 'ns2', 'ns3', 'ns4', 'handle'], 'string', 'max' => 255],
-            [['ns1', 'ns2', 'ns3', 'ns4',], 'validateNS',],
-            [['ns1', 'ns2', 'ns3', 'ns4',], 'validateRequireNS',],
-            [['domain_id'], 'exist', 'targetClass' => Domain::className(), 'targetAttribute' => ['domain_id' => 'id']],
+            [['ns1', 'ns2', 'ns3', 'ns4',], 'validateNS', 'skipOnEmpty' => false],
+            // [['ns1', 'ns2', 'ns3', 'ns4',], 'validateRequireNS',],
+            [['domain_id'], 'exist', 'skipOnEmpty' => false, 'targetClass' => Domain::className(), 'targetAttribute' => ['domain_id' => 'id'], 'message' => 'Выберите домен'],
         ];
     }
 
@@ -95,6 +95,8 @@ class DnsChange extends \yii\db\ActiveRecord
     public function validateRequireNS()
     {
         $data = [$this->ns1, $this->ns2, $this->ns3, $this->ns4,];
+        \Yii::warning($data);
+        \Yii::warning(count(array_filter($data)));
         if (count(array_filter($data)) == 0) {
             $this->addError('ns1', 'Введите хотя бы одно имя');
             return false;
@@ -109,12 +111,19 @@ class DnsChange extends \yii\db\ActiveRecord
      */
     public function validateNS($attribute)
     {
+        $data = [$this->ns1, $this->ns2, $this->ns3, $this->ns4,];
+        if (count(array_filter($data)) < 2) {
+            $this->addError('ns1', 'Введите два ns-сервера');
+            return false;
+        }
         $val = $this->$attribute;
-        $domains = explode(' ', $val);
-        foreach ($domains as $domain) {
-            if (!self::checkDomain($domain)) {
-                $this->addError($attribute, 'Введите валидное доменное имя');
-                return false;
+        if ($val != '') {
+            $domains = explode(' ', $val);
+            foreach ($domains as $domain) {
+                if (!self::checkDomain($domain)) {
+                    $this->addError($attribute, 'Введите валидное доменное имя');
+                    return false;
+                }
             }
         }
         return true;

@@ -9,8 +9,8 @@ class APIHelper
 {
     const BASE_URL = 'https://vrdemo.virtreg.ru/vr-api';
     const USER = 'demo';
-    const CLIENT = 813;
     const PASSWORD = 'demo';
+    const CLIENT = 813;
     public static $token = '';
 
     /**
@@ -52,10 +52,11 @@ class APIHelper
         if ($response->isOk) {
             \Yii::trace($response->content);
             $data = Json::decode($response->content);
-            if ($data) {
+            if (isset($data['result'])) {
                 return $data['result'];
             } else {
                 \Yii::error('error', 'http');
+                return false;
             }
         } else {
             return false;

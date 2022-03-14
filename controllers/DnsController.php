@@ -38,6 +38,7 @@ class DnsController extends Controller
         if (\Yii::$app->request->isAjax) {
             $model = new DnsChange();
             if ($model->load(\Yii::$app->request->post())) {
+                \Yii::warning($model->attributes);
                 \Yii::$app->response->format = Response::FORMAT_JSON;
                 return ActiveForm::validate($model);
             }

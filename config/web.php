@@ -34,6 +34,12 @@ $config = [
             // for the mailer to send real emails.
             'useFileTransport' => true,
         ],
+        'api' => [
+            'class' => 'app\components\APIComponent',
+            'url' => 'https://vrdemo.virtreg.ru/vr-api',
+            'user' => 'demo',
+            'password' => 'demo',
+        ],
         'log' => [
             'traceLevel' => YII_DEBUG ? 3 : 0,
             'targets' => [

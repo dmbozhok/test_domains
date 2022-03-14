@@ -37,6 +37,7 @@ AppAsset::register($this);
     echo Nav::widget([
         'options' => ['class' => 'navbar-nav'],
         'items' => [
+            ['label' => 'Анкеты', 'url' => ['/client/index']],
             ['label' => 'Домены', 'url' => ['/domain/index']],
             ['label' => 'ДНС', 'url' => ['/dns/index']],
         ],
