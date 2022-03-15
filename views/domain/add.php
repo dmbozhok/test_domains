@@ -2,7 +2,7 @@
 /**
  * @var $this \yii\web\View
  * @var $model \app\models\Domain
- * @var $result array
+ * @var $result bool|null
  */
 
 use yii\bootstrap4\ActiveForm;
@@ -13,14 +13,15 @@ $form = ActiveForm::begin([
     'enableClientValidation' => false,
     'method' => 'post',
 ]); ?>
-<?php if ($result) { ?>
-    <?php if ($result['success'] === false) { ?>
-        <?= $form->errorSummary($model); ?>
-    <?php } elseif ($result['sent'] === false) { ?>
+<?php if (isset($result)) { ?>
+    <?php if ($result === false) { ?>
         <div class="alert alert-danger">Не удалось отправить запрос или запрос не прошел успешно</div>
-    <?php } elseif ($result['sent'] === true) { ?>
+    <?php } elseif ($result === true) { ?>
         <div class="alert alert-success">Запрос на регистрацию отправлен</div>
     <?php } ?>
+<?php } ?>
+<?php if (is_array($model->errors) && count($model->errors)) { ?>
+    <?= $form->errorSummary($model); ?>
 <?php } ?>
     <div class="row">
         <div class="col-md-4">
@@ -29,14 +30,9 @@ $form = ActiveForm::begin([
             ])->label('Домен') ?>
         </div>
         <div class="col-md-4">
-            <?= $form->field($model, 'emails',[])->textInput([
-                'class' => 'form-control'
-            ])->label('Email') ?>
-        </div>
-        <div class="col-md-4">
-            <?= $form->field($model, 'phones',[])->textInput([
-                'class' => 'form-control'
-            ])->label('Телефон') ?>
+            <?= $form->field($model, 'client_id')->dropdownList(\app\models\Client::listActiveClients(), [
+                'prompt' => 'Выберите анкету клиента', 'class' => 'form-control',
+            ])->label('Клиент') ?>
         </div>
     </div>
     <button class="btn btn-success" id="add-domain">Добавить</button>

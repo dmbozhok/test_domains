@@ -62,6 +62,12 @@ class Client extends \yii\db\ActiveRecord
         return [
             [['external_id', 'status'], 'integer'],
             [['nameLocal', 'birthday', 'legal', 'emails', 'phones', 'addressLocalIndex', 'addressLocalCountry', 'addressLocalRegion', 'addressLocalCity', 'addressLocalStreet', 'identityCountry', 'identityType', 'identitySeries', 'identityNumber', 'identityIssuer', 'identityIssued', 'handle'], 'string', 'max' => 255],
+            [['nameLocal', 'birthday', 'emails', 'phones', 'addressLocalIndex', 'addressLocalCountry', 'addressLocalRegion', 'addressLocalCity', 'addressLocalStreet', 'identityCountry', 'identityType', 'identitySeries', 'identityNumber', 'identityIssuer', 'identityIssued'], 'required', 'message' => 'Введите все данные'],
+            [['identitySeries', 'identityNumber', 'identityIssuer', 'identityIssued'], 'validateIdentity', 'skipOnEmpty' => false],
+            ['emails', 'email', 'message' => 'Введите корректный email'],
+            ['phones', 'validatePhone', 'message' => 'Введите корректный номер телефона'],
+            ['addressLocalCountry', 'validateAddressCountry', 'skipOnEmpty' => false],
+            ['addressLocalRegion', 'validateAddressRegion', 'skipOnEmpty' => false],
         ];
     }
 
@@ -102,6 +108,67 @@ class Client extends \yii\db\ActiveRecord
     public function getDomains()
     {
         return $this->hasMany(Domain::className(), ['client_id' => 'id']);
+    }
+
+    /**
+     * @return bool
+     */
+    public function validateAddressCountry()
+    {
+        if (mb_strlen($this->addressLocalCountry) != 2) {
+            $this->addError('addressLocalCountry', "Введите код страны из 2 букв");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @return bool
+     */
+    public function validateAddressRegion()
+    {
+        if (intval($this->addressLocalRegion) == 0 || !is_numeric($this->addressLocalRegion)) {
+            $this->addError('addressLocalRegion', "Введите числовой код региона");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Проверка номера телефона
+     * @return bool
+     */
+    public function validatePhone()
+    {
+        $phones = \Yii::$app->api->formatToPhone($this->phones);
+        if (strlen($phones) != 14) {
+            $this->addError('phone', "Введите корректный номер телефона");
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * @return bool
+     */
+    public function validateIdentity()
+    {
+        $result = true;
+
+        if (!preg_match('/^\d{4}$/', $this->identitySeries)) {
+            $this->addError('identitySeries', "Введите правильно серию паспорта");
+            $result = false;
+        }
+        if (!preg_match('/^\d{6}$/', $this->identityNumber)) {
+            $this->addError('identityNumber', "Введите правильно номер паспорта");
+            $result = false;
+        }
+        if (!preg_match('/^[ 0-9a-zA-Zа-яёА-ЯЁ№\/\'\".,-]{3,128}$/', $this->identityIssuer)) {
+            $this->addError('identityNumber', "Введите правильно место выдачи паспорта");
+            $result = false;
+        }
+
+        return $result;
     }
 
     /**
@@ -177,5 +244,13 @@ class Client extends \yii\db\ActiveRecord
             }
         }
         return false;
+    }
+
+    /**
+     * @return array
+     */
+    public static function listActiveClients(): array
+    {
+        return self::find()->select(['nameLocal', 'id'])->where(['status' => self::STATUS_SUCCESS])->indexBy('id')->orderBy('nameLocal')->column();
     }
 }

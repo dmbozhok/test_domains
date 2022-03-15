@@ -56,13 +56,9 @@ class Domain extends \yii\db\ActiveRecord
         return [
             [['status', 'time', 'external_id', 'client_id'], 'integer'],
             ['name', 'required', 'message' => 'Введите доменное имя'],
-            ['emails', 'required', 'message' => 'Введите email'],
-            ['phones', 'required', 'message' => 'Введите телефон'],
             ['name', DomainValidator::class, 'enableIDN' => true, 'allowURL' => false, 'message' => 'Введите корректное доменное имя'],
-            ['emails', 'email', 'message' => 'Введите корректный email'],
-            ['phones', 'validatePhone', 'message' => 'Введите корректный номер телефона'],
             [['name', 'nameIdn', 'emails', 'phones', 'handle'], 'string', 'max' => 255],
-            [['client_id'], 'exist', 'skipOnError' => true, 'targetClass' => Client::className(), 'targetAttribute' => ['client_id' => 'id']],
+            [['client_id'], 'exist', 'skipOnError' => false, 'targetClass' => Client::className(), 'targetAttribute' => ['client_id' => 'id']],
         ];
     }
 
@@ -144,8 +140,8 @@ class Domain extends \yii\db\ActiveRecord
         $model->attributes = $data;
         $model->nameIdn = $model->name;
         $model->name = idn_to_ascii($model->nameIdn);
-        $model->status = self::STATUS_NEW;
         $model->time = time();
+        $model->status = self::STATUS_NEW;
 
         if ($model->save()) {
             $result = APIHelper::createDomain([
@@ -214,5 +210,61 @@ class Domain extends \yii\db\ActiveRecord
     public static function listActiveDomains(): array
     {
         return self::find()->select(['name', 'id'])->where(['status' => self::STATUS_SUCCESS])->indexBy('id')->orderBy('name')->column();
+    }
+
+    /**
+     * @return bool
+     * @throws \yii\base\InvalidConfigException
+     * @throws \yii\httpclient\Exception
+     */
+    public function sendRequest(): bool
+    {
+        $result = \Yii::$app->api->performRequest('domainCreate', [
+            'clientId' => $this->client->external_id,
+            'domain' => [
+                'name' => $this->name,
+                'comment' => 'Comment: created via API',
+            ],
+        ]);
+        if ($result) {
+            $this->external_id = $result['id'];
+            $this->handle = $result['handle'];
+            $this->status = self::STATUS_SENT;
+            $this->save(false);
+            \Yii::info('added domain ' . $this->id . ' with external id ' . $this->external_id, 'log');
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+    /**
+     * @return bool
+     * @throws \yii\base\InvalidConfigException
+     * @throws \yii\httpclient\Exception
+     */
+    public function updateStatus(): bool
+    {
+        $result = \Yii::$app->api->performRequest('taskStatus', [
+            'handle' => $this->handle,
+        ]);
+        if (is_array($result)) {
+            if ($result['status'] == 'success') {
+                $this->status = self::STATUS_SUCCESS;
+                $this->save(false);
+                return true;
+            } else {
+                if ($result['status'] == 'failed') {
+                    $this->status = self::STATUS_FAILED;
+                    $this->save(false);
+                    return true;
+                } elseif ($result['status'] == 'cancelled') {
+                    $this->status = self::STATUS_CANCELLED;
+                    $this->save(false);
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

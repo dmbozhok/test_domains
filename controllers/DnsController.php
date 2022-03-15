@@ -5,6 +5,8 @@ namespace app\controllers;
 use app\components\APIHelper;
 use app\models\DnsChange;
 use app\models\Domain;
+use Exception;
+use yii\base\InvalidConfigException;
 use yii\bootstrap4\ActiveForm;
 use yii\data\ActiveDataProvider;
 use yii\web\Controller;
@@ -30,26 +32,25 @@ class DnsController extends Controller
     /**
      * Выполнение операции по смене ns серверов
      * @return array|string
-     * @throws \yii\base\InvalidConfigException
-     * @throws \yii\httpclient\Exception
      */
     public function actionUpdate()
     {
-        if (\Yii::$app->request->isAjax) {
-            $model = new DnsChange();
-            if ($model->load(\Yii::$app->request->post())) {
-                \Yii::warning($model->attributes);
+        $result = null;
+        $model = new DnsChange();
+        if (\Yii::$app->request->isPost && $model->load(\Yii::$app->request->post())) {
+            if (\Yii::$app->request->isAjax) {
                 \Yii::$app->response->format = Response::FORMAT_JSON;
                 return ActiveForm::validate($model);
             }
-        }
-        $result = [];
-        $model = new DnsChange();
-        if (\Yii::$app->request->isPost) {
-            $domain = Domain::findOne(['id' => \Yii::$app->request->post('DnsChange')['domain_id']]);
-            if ($domain) {
-                $result = $domain->updateNS(\Yii::$app->request->post('DnsChange'));
-                $model = $result['model'];
+            $model->time = time();
+            $model->status = DnsChange::STATUS_NEW;
+
+            if ($model->save()) {
+                try {
+                    $result = $model->updateNS();
+                } catch (InvalidConfigException | Exception $e) {
+                    $result = false;
+                }
             }
         }
 
@@ -66,20 +67,10 @@ class DnsController extends Controller
     {
         $model = DnsChange::findOne(['id' => \Yii::$app->request->post('id'), 'status' => DnsChange::STATUS_SENT]);
         if ($model) {
-            $result = APIHelper::getTaskStatus($model->handle);
-            if ($result['status'] == 'success') {
-                $model->status = DnsChange::STATUS_SUCCESS;
-                $model->save(false);
+            if ($model->updateStatus()) {
                 return $this->asJson(['success' => true]);
             } else {
-                if ($result['status'] == 'failed') {
-                    $model->status = DnsChange::STATUS_FAILED;
-                    $model->save(false);
-                } elseif ($result['status'] == 'cancelled') {
-                    $model->status = DnsChange::STATUS_CANCELLED;
-                    $model->save(false);
-                }
-                return $this->asJson(['success' => false, 'data' => $result]);
+                return $this->asJson(['success' => false]);
             }
         } else {
             return $this->asJson(['success' => false, 'error' => 'Запись об операции не найдена или неверный статус для проверки']);

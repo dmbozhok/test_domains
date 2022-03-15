@@ -4,8 +4,10 @@ namespace app\controllers;
 
 use app\components\APIHelper;
 use app\models\Domain;
+use yii\base\InvalidConfigException;
 use yii\bootstrap4\ActiveForm;
 use yii\data\ActiveDataProvider;
+use yii\httpclient\Exception;
 use yii\web\Controller;
 use yii\web\Response;
 
@@ -34,26 +36,29 @@ class DomainController extends Controller
     /**
      * Форма добавления домена
      * @return string|array
-     * @throws \yii\base\InvalidConfigException
-     * @throws \yii\httpclient\Exception
      */
     public function actionAdd()
     {
-        if (\Yii::$app->request->isAjax) {
-            $model = new Domain();
-            if ($model->load(\Yii::$app->request->post())) {
+        $model = new Domain();
+        $result = null;
+        if (\Yii::$app->request->isPost && $model->load(\Yii::$app->request->post())) {
+            if (\Yii::$app->request->isAjax) {
                 \Yii::$app->response->format = Response::FORMAT_JSON;
                 return ActiveForm::validate($model);
             }
+            $model->status = Domain::STATUS_NEW;
+            $model->nameIdn = $model->name;
+            $model->name = idn_to_ascii($model->nameIdn);
+            $model->time = time();
+            if ($model->save()) {
+                try {
+                    $result = $model->sendRequest();
+                } catch (InvalidConfigException | Exception $e) {
+                    $result = false;
+                }
+            }
         }
 
-        if (\Yii::$app->request->isPost) {
-            $result = Domain::add(\Yii::$app->request->post('Domain'));
-            $model = $result['model'];
-        } else {
-            $result = [];
-            $model = new Domain();
-        }
         return $this->render('add', ['model' => $model, 'result' => $result]);
     }
 
@@ -67,20 +72,10 @@ class DomainController extends Controller
     {
         $model = Domain::findOne(['id' => \Yii::$app->request->post('id'), 'status' => Domain::STATUS_SENT]);
         if ($model) {
-            $result = APIHelper::getTaskStatus($model->handle);
-            if ($result['status'] == 'success') {
-                $model->status = Domain::STATUS_SUCCESS;
-                $model->save(false);
+            if ($model->updateStatus()) {
                 return $this->asJson(['success' => true]);
             } else {
-                if ($result['status'] == 'failed') {
-                    $model->status = Domain::STATUS_FAILED;
-                    $model->save(false);
-                } elseif ($result['status'] == 'cancelled') {
-                    $model->status = Domain::STATUS_CANCELLED;
-                    $model->save(false);
-                }
-                return $this->asJson(['success' => false, 'data' => $result]);
+                return $this->asJson(['success' => false]);
             }
         } else {
             return $this->asJson(['success' => false, 'error' => 'Запись о домене не найдена или неверный статус для проверки']);

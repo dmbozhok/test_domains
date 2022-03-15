@@ -167,4 +167,67 @@ class DnsChange extends \yii\db\ActiveRecord
         }
         return self::checkDomainName($name) || filter_var($name, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE);
     }
+
+    /**
+     * @return bool
+     * @throws \yii\base\InvalidConfigException
+     * @throws \yii\httpclient\Exception
+     */
+    public function updateNS()
+    {
+        $result = \Yii::$app->api->performRequest('domainUpdate', [
+            'id' => $this->domain->external_id,
+            'clientId' => $this->domain->client->external_id,
+            'domain' => [
+                'delegated' => true,
+                'nservers' => array_filter([
+                    $this->ns1,
+                    $this->ns2,
+                    $this->ns3,
+                    $this->ns4,
+                ]),
+            ],
+        ]);
+
+        if ($result) {
+            $this->handle = $result['handle'];
+            $this->status = DnsChange::STATUS_SENT;
+            $this->save(false);
+            \Yii::info('added domain change ns servers request ' . $this->id, 'log');
+            return true;
+        } else {
+            return false;
+        }
+    }
+
+
+    /**
+     * @return bool
+     * @throws \yii\base\InvalidConfigException
+     * @throws \yii\httpclient\Exception
+     */
+    public function updateStatus(): bool
+    {
+        $result = \Yii::$app->api->performRequest('taskStatus', [
+            'handle' => $this->handle,
+        ]);
+        if (is_array($result)) {
+            if ($result['status'] == 'success') {
+                $this->status = self::STATUS_SUCCESS;
+                $this->save(false);
+                return true;
+            } else {
+                if ($result['status'] == 'failed') {
+                    $this->status = self::STATUS_FAILED;
+                    $this->save(false);
+                    return true;
+                } elseif ($result['status'] == 'cancelled') {
+                    $this->status = self::STATUS_CANCELLED;
+                    $this->save(false);
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
 }
